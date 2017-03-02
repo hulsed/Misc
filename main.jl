@@ -1,3 +1,8 @@
+#Daniel Hulse
+#ME 617
+#HW 3
+#Problems 1 and 2
+
 include("DesAuto3.jl")
 
 LB=[-10,-10,-10, -10]

@@ -1,4 +1,7 @@
-
+%Daniel Hulse
+%ME 617
+%HW 3, #3
+%Due 3/1/2017
 mishra11=@(x) ((abs(x(1))+abs(x(2))+abs(x(3))+abs(x(4)))/4 - (abs(x(1))*abs(x(2))*abs(x(3))*abs(x(4)))^(1/4))^2;
 
 
@@ -6,8 +9,8 @@ UB=[10,10,10,10];
 LB=[-10,-10,-10,-10];
 
 
-%gaoptions=optimoptions(@ga,'FunctionTolerance', 0); %'PlotFcn', @gaplotbestf)
-%[x_ga,fval_ga,exitflag,output]=ga(mishra11,4,[],[],[],[], LB,UB,[],[],gaoptions)
+gaoptions=optimoptions(@ga,'FunctionTolerance', 0); %'PlotFcn', @gaplotbestf)
+[x_ga,fval_ga,exitflag,output]=ga(mishra11,4,[],[],[],[], LB,UB,[],[],gaoptions)
 evals=output.funccount
 
 saoptions=optimoptions(@simulannealbnd, 'FunctionTolerance', 0, 'TemperatureFcn', @temperatureboltz) %'PlotFcn', @gaplotbestf)
