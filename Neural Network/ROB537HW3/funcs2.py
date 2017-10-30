@@ -24,6 +24,7 @@ def evaluate(state):
         
     return reward
 
+
 def select(values):
     epsilon=0.1
     dice=numpy.random.random()
@@ -82,6 +83,35 @@ def qlearn(oldstate,newstate,qtable,reward,action,alpha,disc):
     qtable[oldstate[0],oldstate[1],action]=newq
     
     return qtable
+
+def episode():
+    steps=20
+    length=10
+    height=5
+    alpha=0.1
+    disc=0.5
+    #initialize states randomly
+    state=numpy.zeros([1,2])
+    state(0)=numpy.random.randint(0,length)
+    state(1)=numpy.random.randint(0,height)
+    #q-table initialization
+    qtable=zeroes([length,height,actions])
+    values=qtable[state(0),state(1),:]
+    
+    rewardhist=numpy.zeros(steps)
+    
+    for i in range(steps):
+        values=qtable[state(0),state(1),:]
+        action=select(values)
+        newstate=move(action,state, length, height)
+        reward=evaluate(newstate)
+        qtable=qlearn(state,newstate,qtable,reward,action,alpha,disc)
+        state=newstate
+        rewardhist[i]=reward
+        
+    return rewardhist
+        
+    
     
     
     
