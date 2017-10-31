@@ -27,21 +27,21 @@ def evaluate(action):
     
     
 def select(values):
-    epsilon=0.1
+    epsilon=0.2
     dice=numpy.random.random()
     actions=len(values)
-    
     if dice<epsilon:
         action=numpy.random.randint(actions)
     else:
-        action=numpy.argmax(values)
+        maxval=numpy.max(values)
+        action=numpy.random.choice(numpy.flatnonzero(values==maxval))
     
     return action
 
 def exp1():
     
-    steps=100
-    episodes=50
+    steps=10
+    episodes=1000
     alpha=0.1
     
     avereward=numpy.zeros(episodes)
@@ -49,26 +49,29 @@ def exp1():
     
     for k in range(episodes):
         #initialize values
-        values=[1,1,1,1,1]
+        values=numpy.ones(5)*3
         totreward=0
         for j in range(steps):
             action=select(values)
+            #print(action)
             reward=evaluate(action)
             values=avlearn(alpha,values,reward,action)
             totreward=totreward+reward
             totrewardhist[k,j]=totreward
         avereward[k]=totreward/steps
     
-    meanreward=numpy.zeros(steps)
-    stdreward=numpy.zeros(steps)      
-    for i in range(steps):
-        meanreward[i]=numpy.mean(totrewardhist[:,i])
-        stdreward[i]=numpy.std(totrewardhist[:,i])
+    #meanreward=numpy.zeros(steps)
+    #stdreward=numpy.zeros(steps)      
+    #for i in range(steps):
+    #    meanreward[i]=numpy.mean(totrewardhist[:,i])
+    #    stdreward[i]=numpy.std(totrewardhist[:,i])
     
-    x=range(steps)
-    plt.errorbar(x,meanreward,stdreward, linestyle='None',marker='+')
+    #x=range(steps)
+    #plt.errorbar(x,meanreward,stdreward, linestyle='None',marker='+')
+    returns=numpy.mean(avereward)
+    var=numpy.std(avereward)
     
-    return totrewardhist, avereward
+    return returns,var, values
     
     
     
