@@ -1,38 +1,5 @@
 
-mutable struct mdl
-  fxns::Dict
-  flows::Dict
-end
-
-mutable struct fxn
-  behav::Symbol
-  flows::Dict
-  states::Dict
-  modelist::Dict
-  modes::Set{String}
-  time::Float64
-  timers::Dict
-end
-
-struct fparams
-  behav::Symbol
-  flows::Dict
-  modes::Dict
-  states::Dict
-  timers::Array
-end
-
-function finit(behav, flows,modes=Dict(), states=Dict(),  timers=[])
-  return fparams(behav,flows, modes, states, timers)
-end
-
-function mode(name::String, rate::String, rcost::String)
-  return name=>Dict("rate"=>rate, "rcost"=>rcost)
-end
-
-function testfxn!(f::fxn)
-  if f.fl["EE"]>1.0 f.st["ET"]==0 end
-end
+using faultmodeler.jl
 
 impEEmodes=Dict(mode("no_v", "moderate","major"), mode("inf_v", "rare","major"))
 importEE = finit(:importEE!, Dict(:EE_1=>:EEout),impEEmodes, Dict(:ET=>1.0))
@@ -89,44 +56,16 @@ function moveWat!(f::fxn, t::Float64)
   f.flows[:Watin][:effort]=f.flows[:Watout][:effort]
   f.flows[:Watin][:rate]=f.flows[:Watout][:rate]
 end
-#for flows, need to rename flows to what will be used internally in behavior
-#Flows = Dict("EE"=>1)
-#States = Dict("ET"=>1)
-#Faultmodes = Dict("nominal"=>Dict("rcost"=>0, "prob"=>1))
-#mode= Set(["nom"])
 
-#EEfunc = fxn(Flows,States, Faultmodes, mode, :testfxn!, 1.0)
+#can call function in dict with:
+#eval(func.behav)(EEfunc)
 
-#print(EEfunc.st)
-#EEfunc.fl["EE"]=2
-#eval(EEfunc.behav)(EEfunc)
-#print(EEfunc.st)
-
-# func = eval(EEfunc.funcref)
-
-#can get graphs from lightgraphs.jl
-
-#can copy the state of the model using deepcopy
-
-#if model params have full scope, may be able to use them in fxns?
 flows=Dict( :EE_1=>Dict(:rate=>1.0, :effort=>1.0),
             :Sig_1=>Dict(:power=>1.0),
             :Wat_1=>Dict(:rate=>1.0, :effort=>1.0, :area=>1.0, :level=>1.0),
             :Wat_2=>Dict(:rate=>1.0, :effort=>1.0, :area=>1.0, :level=>1.0))
 
 initfxns = [importEE, importWater, exportWater, importSig, moveWat]
-
-function init_mdl(flows::Dict, initfxns::Array)
-  fxns=Dict()
-  for initfxn in initfxns
-    fxnflows=Dict(initfxn.flows[flow]=>flows[flow] for flow in keys(initfxn.flows))
-    modes=Set(["nom"])
-    timers=Dict(timer=>0.0 for timer in initfxn.timers)
-    func=fxn(initfxn.behav, fxnflows, initfxn.states, initfxn.modes, modes, 0.0, timers)
-    fxns[initfxn.behav]=func
-  end
-  return mdl(fxns,flows)
-end
 
 initmdl = init_mdl(flows, initfxns)
 
