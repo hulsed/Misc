@@ -1,30 +1,48 @@
 
 using LightGraphs, MetaGraphs, GraphPlot
 
-mutable struct model
-  name::Symbol
+mutable struct modelstates
   fxns::Dict
   flows::Dict
+end
+
+struct modelattr
+  name::Symbol
   flowfxns::Dict
   graph::SimpleGraph
   nodelabels::Array
   time::Float64
 end
 
-mutable struct fxn
-  name::Symbol
-  behav::Symbol
+mutable struct model
+  st::modelstates
+  at::modelattr
+end
+
+#split fxn into fxn
+# and fxnstate
+
+#split mdl into mdl and
+#create modelstates struct
+
+mutable struct fxnstates
   flows::Dict
   states::Dict
-  modelist::Dict
-  modes::Set{String}
+  modes::Set
   time::Float64
   timers::Dict
 end
 
+mutable struct fxn
+  name::Symbol
+  behav::Function
+  modelist::Dict
+  states::fxnstates
+end
+
 struct fparams
   name::Symbol
-  behav::Symbol
+  behav::Function
   flows::Dict
   modes::Dict
   states::Dict
@@ -93,6 +111,19 @@ function run_one_fault(mdl::model, fxn::Symbol, fault::Symbol, time::Float64, rp
   return hist
 end
 
+function run_list(mdl, rp::runparameters)
+  nomscen = construct_scenario(mdl, Dict(), 0.0)
+  nomhist = prop_one_scenario(mdl, nomscen, rp)
+  scenlist=construct_scenarios(mdl, rp.times)
+  hists=[]
+  for scen in scenlist
+    hist = prop_one_scenario(mdl, nomscen, rp)
+    push!(hists, hist)
+  end
+  return hists
+end
+
+inithist(mdl)
 
 function prop_one_scenario(mdl::model, scen::scenario, rp::runparameters, prevhist=Dict())
   if isempty(prevhist)
@@ -102,10 +133,13 @@ function prop_one_scenario(mdl::model, scen::scenario, rp::runparameters, prevhi
     timerange=scen.time:rp.timestep:rp.endtime
     hist = deepcopy(prevhist)
   end
+
+  hist = []
+
   for rtime in timerange
-    hist[rtime] = propagate(mdl, rtime, scen)
+     propagate(mdl, rtime, scen)
   end
-  return hist
+  return
 end
 
 function propagate(mdl::model, rtime::Float64, scen::scenario)
@@ -122,10 +156,13 @@ function propagate(mdl::model, rtime::Float64, scen::scenario)
   n=1
   while !isempty(activefxns)
     for fxnname in copy(activefxns)
-      laststate=copy(mdl.fxns[fxnname].states)
-      lastfaults=copy(mdl.fxns[fxnname].modes)
-      eval(mdl.fxns[fxnname].behav)(mdl.fxns[fxnname], rtime)
-      if laststate!=mdl.fxns[fxnname].states||lastfaults!=mdl.fxns[fxnname].modes
+      laststate=copy(mdl.fxns[fxnname].states.states)
+      lastfaults=copy(mdl.fxns[fxnname].states.modes)
+      # need to put reference to function in struct instead of calling eval
+      # hopefully this is why this is slow
+      mdl.fxns[fxnname].behav(mdl.fxns[fxnname].states, rtime)
+
+      if laststate!=mdl.fxns[fxnname].states.states||lastfaults!=mdl.fxns[fxnname].states.modes
         push!(nextfxns, fxnname)
       end
     end
@@ -163,10 +200,10 @@ function initialize_model(name::Symbol, flows::Dict, initfxns::Array)
   fxns=Dict()
   for initfxn in initfxns
     fxnflows=Dict(initfxn.flows[flow]=>flows[flow] for flow in keys(initfxn.flows))
-    modes=Set(["nom"])
+    modes=Set([:nom])
     timers=Dict(timer=>0.0 for timer in initfxn.timers)
-    func=fxn(initfxn.name, initfxn.behav, fxnflows, initfxn.states, initfxn.modes, modes, 0.0, timers)
-    fxns[initfxn.name]=func
+    fstates=fxnstates(fxnflows,initfxn.states, modes, 0.0, timers)
+    fxns[initfxn.name]=fxn(initfxn.name, initfxn.behav, initfxn.modes, fstates)
   end
   fxnflowmap =Dict(initfxn.name=>keys(initfxn.flows) for initfxn in initfxns)
   graph,nodes, nodelabels= make_graph(flows, fxnflowmap)
