@@ -1,36 +1,12 @@
 
 using LightGraphs, MetaGraphs, GraphPlot
 
-mutable struct modelstates
-  fxns::Dict
-  flows::Dict
-end
-
-struct modelattr
-  name::Symbol
-  flowfxns::Dict
-  graph::SimpleGraph
-  nodelabels::Array
-  time::Float64
-end
-
-mutable struct model
-  st::modelstates
-  at::modelattr
-end
-
-#split fxn into fxn
-# and fxnstate
-
-#split mdl into mdl and
-#create modelstates struct
-
 mutable struct fxnstates
-  flows::Dict
-  states::Dict
-  modes::Set
-  time::Float64
-  timers::Dict
+  flows::Dict{Symbol, Dict{Symbol, Array{Float64}}}
+  states::Dict{Symbol, Array{Float64}}
+  modes::Array{Set{Symbol}}
+  time::Array{Float64}
+  timers::Dict{Symbol, Array{Float64}}
 end
 
 mutable struct fxn
@@ -39,6 +15,24 @@ mutable struct fxn
   modelist::Dict
   states::fxnstates
 end
+
+mutable struct model
+  name::Symbol
+  fxns::Dict{Symbol, fxn}
+  flows::Dict{Symbol, Dict{Symbol, Array{Float64}}}
+  flowfxns::Dict
+  graph::SimpleGraph
+  nodelabels::Array
+  timerange::Array{Float64}
+end
+
+#split fxn into fxn
+# and fxnstate
+
+#split mdl into mdl and
+#create modelstates struct
+
+
 
 struct fparams
   name::Symbol
@@ -101,12 +95,12 @@ function construct_scenarios(mdl::model, times)
   return scenlist
 end
 
-function run_one_fault(mdl::model, fxn::Symbol, fault::Symbol, time::Float64, rp::runparameters)
+function run_one_fault!(mdl::model, fxn::Symbol, fault::Symbol, time::Float64, rp::runparameters)
   nomscen = construct_scenario(mdl, Dict(), 0.0)
-  nomhist = prop_one_scenario(mdl, nomscen, rp)
+  nomhist = prop_one_scenario!(mdl, nomscen, rp)
 
   scen = construct_scenario(mdl, Dict(fxn => [fault]), time)
-  hist = prop_one_scenario(mdl, nomscen, rp)
+  hist = prop_one_scenario!(mdl, nomscen, rp)
   #add things to process model later
   return hist
 end
@@ -117,62 +111,74 @@ function run_list(mdl, rp::runparameters)
   scenlist=construct_scenarios(mdl, rp.times)
   hists=[]
   for scen in scenlist
-    hist = prop_one_scenario(mdl, nomscen, rp)
+    hist = prop_one_scenario!(mdl, nomscen, rp)
     push!(hists, hist)
   end
   return hists
 end
 
-inithist(mdl)
-
-function prop_one_scenario(mdl::model, scen::scenario, rp::runparameters, prevhist=Dict())
-  if isempty(prevhist)
-    timerange=0:rp.timestep:rp.endtime
-    hist = Dict()
-  else
-    timerange=scen.time:rp.timestep:rp.endtime
-    hist = deepcopy(prevhist)
-  end
-
-  hist = []
-
-  for rtime in timerange
-     propagate(mdl, rtime, scen)
+function prop_one_scenario!(mdl::model, scen::scenario, rp::runparameters, prevhist=Dict())
+  for (ind, time) in enumerate(mdl.timerange)
+     propagate!(mdl, ind, scen)
   end
   return
 end
 
-function propagate(mdl::model, rtime::Float64, scen::scenario)
-  mdl=deepcopy(mdl)
-  lastflows=copy(mdl.flows)
-  activefxns=Set(keys(mdl.fxns))
-  nextfxns=Set()
+function getflowstate(flowhist::Dict{Symbol, Dict{Symbol, Array{Float64}}}, index::Int)
+  flows=Dict{Symbol, Dict{Symbol, Float64}}()
+  for flow in keys(flowhist)
+    values=Dict{Symbol, Float64}()
+    for value in keys(flowhist[flow])
+      values[value]=flowhist[flow][value][index]
+    end
+    flows[flow]=values
+  end
+  return flows
+end
+
+function getstatestate(statehist::Dict{Symbol, Array{Float64}}, index::Int)
+  states=Dict{Symbol, Float64}()
+  for state in keys(statehist)
+    states[state]=statehist[state][index]
+  end
+  return states
+end
+
+function propagate!(mdl::model, t::Int64, scen::scenario)
+  lastflows=getflowstate(mdl.flows, t)
+  activefxns=Set{Symbol}(keys(mdl.fxns))
+  nextfxns=Set{Symbol}()
   #add modes from scenario
-  if rtime==scen.time
+  if t==scen.time
     for func in keys(scen.faults)
-      push!(mdl.fxns[func].modes, scen.faults[func])
+      push!(mdl.fxns[func].states.modes[t], scen.faults[func])
     end
   end
   n=1
   while !isempty(activefxns)
     for fxnname in copy(activefxns)
-      laststate=copy(mdl.fxns[fxnname].states.states)
-      lastfaults=copy(mdl.fxns[fxnname].states.modes)
-      # need to put reference to function in struct instead of calling eval
-      # hopefully this is why this is slow
-      mdl.fxns[fxnname].behav(mdl.fxns[fxnname].states, rtime)
+      laststate=copy(getstatestate(mdl.fxns[fxnname].states.states, t))
+      lastfaults=copy(mdl.fxns[fxnname].states.modes[t])
 
-      if laststate!=mdl.fxns[fxnname].states.states||lastfaults!=mdl.fxns[fxnname].states.modes
+      mdl.fxns[fxnname].behav(mdl.fxns[fxnname].states, t)
+
+      newstate=copy(getstatestate(mdl.fxns[fxnname].states.states, t))
+      newfaults=copy(mdl.fxns[fxnname].states.modes[t])
+      if laststate!=newstate||lastfaults!=newfaults
         push!(nextfxns, fxnname)
       end
+      laststate=newstate
+      lastfaults=newfaults
     end
+    newflows = getflowstate(mdl.flows, t)
     for flowname in keys(mdl.flows)
-      if lastflows[flowname]!=mdl.flows[flowname]
+      if lastflows[flowname]!=newflows[flowname]
         for fxnname in mdl.flowfxns[flowname]
-          push!(nexfxns, fxnname)
+          push!(nextfxns, fxnname)
         end
       end
     end
+    lastflows = newflows
     activefxns = copy(nextfxns)
     empty!(nextfxns)
     n+=1
@@ -182,7 +188,6 @@ function propagate(mdl::model, rtime::Float64, scen::scenario)
       break
     end
   end
-return mdl
 end
 
 
@@ -196,20 +201,43 @@ function mode(name::Symbol, rate::Float64, rcost::Symbol)
   return name=>Dict(:rate=>rate, :rcost=>rcost)
 end
 
-function initialize_model(name::Symbol, flows::Dict, initfxns::Array)
+function initialize_model(name::Symbol, flows::Dict, initfxns::Array, timerange)
+  flowhist = init_flowhist(flows, timerange)
   fxns=Dict()
   for initfxn in initfxns
-    fxnflows=Dict(initfxn.flows[flow]=>flows[flow] for flow in keys(initfxn.flows))
-    modes=Set([:nom])
-    timers=Dict(timer=>0.0 for timer in initfxn.timers)
-    fstates=fxnstates(fxnflows,initfxn.states, modes, 0.0, timers)
+    fxnflows=Dict(initfxn.flows[flow]=>flowhist[flow] for flow in keys(initfxn.flows))
+    modehist=[Set([:nom]) for i in timerange]
+    timers=Dict(timer=>[0.0 for i in timerange] for timer in initfxn.timers)
+    statehist=init_statehist(initfxn.states, timerange)
+    fstates=fxnstates(fxnflows,statehist, modehist, collect(timerange), timers)
     fxns[initfxn.name]=fxn(initfxn.name, initfxn.behav, initfxn.modes, fstates)
   end
   fxnflowmap =Dict(initfxn.name=>keys(initfxn.flows) for initfxn in initfxns)
   graph,nodes, nodelabels= make_graph(flows, fxnflowmap)
   flowfxns=Dict(flow=>[nodelabels[i] for i in neighbors(graph,nodes[flow])] for flow in keys(flows))
-  return model(name, fxns,flows,flowfxns, graph, nodelabels, 0.0)
+  return model(name, fxns,flowhist,flowfxns, graph, nodelabels, collect(timerange))
 end
+
+function init_flowhist(flows::Dict, timerange)
+  flowhist=Dict()
+  for flow in keys(flows)
+    values=Dict{Symbol, Array{Float64}}()
+    for value in keys(flows[flow])
+      values[value]=[flows[flow][value] for i in timerange]
+    end
+    flowhist[flow]=values
+  end
+  return flowhist
+end
+
+function init_statehist(states::Dict, timerange)
+  statehist=Dict()
+  for state in keys(states)
+    statehist[state]=[states[state] for i in timerange]
+  end
+  return statehist
+end
+
 
 function make_graph(flows::Dict, fxnflowmap::Dict)
   nodelabels = collect(Iterators.flatten([keys(flows), keys(fxnflowmap)]))

@@ -5,58 +5,58 @@ include("faultmodeler.jl")
 moderate = 1e-5
 rare = 1e-7
 
-function importEE!(f::fxnstates, t::Float64)
-  if f.flows[:EEout][:rate] > 5.0 push!(f.modes, :no_v)
+function importEE!(f::fxnstates, t::Int64)
+  if f.flows[:EEout][:rate][t] > 5.0 push!(f.modes[t], :no_v)
 
-  if in(:no_v,f.modes)       f.states[:ET]=0.0
-  elseif in(:inf_v, f.modes) f.states[:ET]=100.0
-  else                        f.states[:ET]=1.0 end
-  f.flows[:EEout][:effort]=f.states[:ET]
+  if in(:no_v,f.modes[t])       f.states[:ET][t]=0.0
+  elseif in(:inf_v, f.modes[t]) f.states[:ET][t]=100.0
+  else                        f.states[:ET][t]=1.0 end
+  f.flows[:EEout][:effort][t]=f.states[:ET][t]
   end
 end
 impEEmodes=Dict(mode(:no_v, moderate,:major), mode(:inf_v, rare,:major))
 importEE = finit(:Import_EE, importEE!, Dict(:EE_1=>:EEout),impEEmodes, Dict(:ET=>1.0))
 
-function importWater!(f::fxnstates, t::Float64)
-  if in(:no_wat, f.modes)  f.flows[:Watout][:level]=0.0
-  else                      f.flows[:Watout][:level]=1.0 end
+function importWater!(f::fxnstates, t::Int64)
+  if in(:no_wat, f.modes[t])  f.flows[:Watout][:level][t]=0.0
+  else                      f.flows[:Watout][:level][t]=1.0 end
 end
 importWater = finit(:Import_Water, importWater!, Dict(:Wat_1=>:Watout), Dict(mode(:no_wat, moderate, :major)))
 
 
-function exportWater!(f::fxnstates, t::Float64)
-  if in(:block, f.modes)   f.flows[:Watin][:area]=0.0 end
+function exportWater!(f::fxnstates, t::Int64)
+  if in(:block, f.modes[t])   f.flows[:Watin][:area][t]=0.0 end
 end
 exportWater = finit(:Export_Water, exportWater!, Dict(:Wat_2=>:Watin), Dict(mode(:block, moderate, :major)))
 
-function importSig!(f::fxnstates, t::Float64)
-  if in(:nosig, f.modes) f.flows[:Sigout][:power]=0.0
-  elseif t<5.0  f.flows[:Sigout][:power]=0.0
-  elseif t<50   f.flows[:Sigout][:power]=1.0
-  else          f.flows[:Sigout][:power]=0.0 end
+function importSig!(f::fxnstates, t::Int64)
+  if in(:nosig, f.modes[t]) f.flows[:Sigout][:power][t]=0.0
+  elseif t<5  f.flows[:Sigout][:power][t]=0.0
+  elseif t<50   f.flows[:Sigout][:power][t]=1.0
+  else          f.flows[:Sigout][:power][t]=0.0 end
 end
 importSig = finit(:Import_Signal, importSig!, Dict(:Sig_1=>:Sigout), Dict(mode(:no_sig, moderate, :major)))
 
-function moveWat!(f::fxnstates, t::Float64)
-  if f.flows[:Watout][:effort]>5.0
+function moveWat!(f::fxnstates, t::Int64)
+  if f.flows[:Watout][:effort][t]>5.0
     if t>f.time f.timer+=1  end #will need to change for timesteps
     if f.timer>10.0 push!(f.modes, :mech_break) end
   end
-  if in(:short, f.modes)
-    f.states[:rs]=0.1
-    f.states[:eff]=0.0
+  if in(:short, f.modes[t])
+    f.states[:rs][t]=0.1
+    f.states[:eff][t]=0.0
   elseif in(:mech_break, f.modes)
-    f.states[:rs]=500
-    f.states[:eff]=0.0
+    f.states[:rs][t]=500
+    f.states[:eff][t]=0.0
   else
-    f.states[:rs]=1.0
-    f.states[:eff]=1.0
+    f.states[:rs][t]=1.0
+    f.states[:eff][t]=1.0
   end
-  f.flows[:EEin][:rate]=f.states[:rs]*f.flows[:Sigin][:power]*f.flows[:EEin][:effort]
-  f.flows[:Watout][:effort]=f.flows[:Sigin][:power]*f.states[:eff]*f.flows[:Watin][:level]/f.flows[:Watin][:area]
-  f.flows[:Watout][:rate]=f.flows[:Sigin][:power]*f.states[:eff]*f.flows[:Watin][:level]*f.flows[:Watin][:area]
-  f.flows[:Watin][:effort]=f.flows[:Watout][:effort]
-  f.flows[:Watin][:rate]=f.flows[:Watout][:rate]
+  f.flows[:EEin][:rate][t]=f.states[:rs][t]*f.flows[:Sigin][:power][t]*f.flows[:EEin][:effort][t]
+  f.flows[:Watout][:effort][t]=f.flows[:Sigin][:power][t]*f.states[:eff][t]*f.flows[:Watin][:level][t]/f.flows[:Watin][:area][t]
+  f.flows[:Watout][:rate][t]=f.flows[:Sigin][:power][t]*f.states[:eff][t]*f.flows[:Watin][:level][t]*f.flows[:Watin][:area][t]
+  f.flows[:Watin][:effort][t]=f.flows[:Watout][:effort][t]
+  f.flows[:Watin][:rate][t]=f.flows[:Watout][:rate][t]
 end
 moveWatmodes=Dict(mode(:mech_break, moderate, :major), mode(:short, rare, :major))
 moveWatflows=Dict(:EE_1=>:EEin, :Sig_1=>:Sigin, :Wat_1=>:Watin, :Wat_2=>:Watout)
@@ -72,7 +72,7 @@ flows=Dict( :EE_1=>Dict(:rate=>1.0, :effort=>1.0),
 
 initfxns = [importEE, importWater, exportWater, importSig, moveWat]
 
-pump = initialize_model(:pump, flows, initfxns)
+pump = initialize_model(:pump, flows, initfxns, collect(1:55))
 
 #graph, nodelabels = make_graph(initmdl)
 
@@ -85,15 +85,23 @@ struct runparameters
   comparenominal::Bool
 end
 
-rp = runparameters([0,50],1,500,true)
+rp = runparameters([0,1000],1,50,true)
 
-hist = run_one_fault(pump, :Move_Water, :mech_break, 5.0, rp)
+#hist = run_one_fault(pump, :Move_Water, :mech_break, 5.0, rp)
+#@time begin
+#for i=1:1
+#  run_one_fault(pump, :Move_Water, :mech_break, 20.0, rp)
+#end
+#end
+
 @time begin
-for i=1:200
-  run_one_fault(pump, :Move_Water, :mech_break, 10.0, rp)
+run_one_fault!(pump, :Move_Water, :mech_break, 10.0, rp)
 end
+@time begin
+  for i =1:100
+    run_one_fault!(pump, :Move_Water, :mech_break, 10.0, rp)
+  end
 end
-
 
 #fxncall(f::fxnstates, t::Float64, ref::symbol)
 #  if    ref==:importEE! importEE!(f::fxnstates, t::Float64)
