@@ -30,6 +30,7 @@ c = recordclass("Container",())
 # p : params
 # s : states
 # e : extras?
+# c : ? - no reason not to disambiguate components etc from being solely a Fxn Property
 
 # Fxn/FxnBlock/Block
 # p : params        - Parameter
