@@ -137,6 +137,7 @@ class Parameter(dataobject, readonly=True):
             true_type = self.__annotations__.get(typed_field, False)
             if true_type and not attr_type==true_type:
                 raise Exception(typed_field+" assigned incorrect type: "+str(attr_type)+" (should be "+str(true_type)+")")
+
             
         
 
@@ -150,6 +151,12 @@ class Param(Parameter, readonly=True):
     y_set = (0.0,30.0,100.0)
 
 a=Param(vel=np.float64(1.0), v="hi")
+
+class Param(dataobject, readonly=True):
+    ex_tuple:   tuple = (0,0)
+    
+b=Param()
+
 
 
 
