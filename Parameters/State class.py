@@ -19,9 +19,20 @@ class NewState(State, hashable=True):
     x_vals = (1,10,20,25)
     y: float = 11
 
-def container_from_dict(name, **kwargs):
+def container(name="Container", **kwargs):
     return recordclass(name, tuple([(k,type(v)) for k, v in kwargs.items()]), tuple([v for v in kwargs.values()]),
                        hashable=True,mapping=True, use_dict=True)
+
+
+class Fxn(object):
+    _init_a = container(b=1)
+    _init_b = container(c=20.0)
+    def __init__(self):
+        self.a = self._init_a()
+        self.b = self._init_b(c=30.0)
+
+
+s = Fxn()
 
 b = NewState()
 c = recordclass("Container",())
@@ -34,6 +45,9 @@ c = recordclass("Container",())
 # h : hist
 
 # Fxn/FxnBlock/Block
+# _init_x            class for below (usually a Container)
+# _init_hist        default args/kwargs for hist (should be able to be overriden by propagate)
+#                   must have defaults, fields, etc
 # p : params        - Parameter
 # fp: fxnparams     - Parameter Variant (dt, etc)
 # s : states        - State
@@ -52,16 +66,14 @@ c = recordclass("Container",())
 # if none provided, use container_from_dict or otherwise
 
 # i : indicators    - from definition?
-# _i : init vals    - taken at start
-# _c : classes???
+# _i : init vals    - taken at start from all with method that iterates throught, tuple
+# _c : classes???   
 
 
 
         
 # should enable sim with 
 
-TestCon = container_from_dict("TestCon", a=1, b=2.0)
 
-testc = TestCon(a=2, b=3.0)
         
         
