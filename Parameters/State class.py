@@ -31,6 +31,7 @@ c = recordclass("Container",())
 # s : states
 # e : extras?
 # c : ? - no reason not to disambiguate components etc from being solely a Fxn Property
+# h : hist
 
 # Fxn/FxnBlock/Block
 # p : params        - Parameter
@@ -43,6 +44,8 @@ c = recordclass("Container",())
 # h : hist          - History - need way to list things to have history of/let you override with args
 # t : timers        - Container w- timers
 # e : extras        - Container
+
+# everything in these slots should be able to give current values, record history, etc
 
 # use the above to associate the classes, defaults?
 # then use __init__() to instance (if non-default)
