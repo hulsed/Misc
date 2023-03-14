@@ -6,6 +6,8 @@ Created on Sat Feb 25 22:11:26 2023
 """
 from recordclass import dataobject, astuple, asdict, recordclass
 
+
+
 class State(dataobject):
     """ """
     def __init__(self,*args,**kwargs):
@@ -36,6 +38,8 @@ s = Fxn()
 
 b = NewState()
 c = recordclass("Container",())
+
+a = History(b, "x")
 
 # Flow
 # p : params
