@@ -153,6 +153,7 @@ class Param(Parameter, readonly=True):
 a=Param(vel=np.float64(1.0), v="hi")
 
 class Param(dataobject, readonly=True):
+    """ """
     ex_tuple:   tuple = (0,0)
     
 b=Param()

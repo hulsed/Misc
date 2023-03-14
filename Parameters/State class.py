@@ -6,33 +6,41 @@ Created on Sat Feb 25 22:11:26 2023
 """
 from recordclass import dataobject, astuple, asdict, recordclass
 
-class State(dataobject):
+class State(dataobject, mapping=True):
     """ """
     def __init__(self,*args,**kwargs):
         super().__init__(*args, **kwargs)
     def reset(self):
         for i, f in enumerate(self.__fields__):
-            setattr(self,f,self.__b__[i])
+            setattr(self,f,self.__defaults__[i])
 
-class NewState(State, hashable=True):
+
+class NewState(State,  mapping=True):
     x: float = 10
     x_vals = (1,10,20,25)
     y: float = 11
 
-def container(name="Container", **kwargs):
-    return recordclass(name, tuple([(k,type(v)) for k, v in kwargs.items()]), tuple([v for v in kwargs.values()]),
-                       hashable=True,mapping=True, use_dict=True)
 
 
-class Fxn(object):
-    _init_a = container(b=1)
-    _init_b = container(c=20.0)
-    def __init__(self):
-        self.a = self._init_a()
-        self.b = self._init_b(c=30.0)
+class Example_State(dataobject):
+    x: float=1.0
+    y: float=2.0
+    
+class Extended_Example_State(Example_State):
+    z: float=3.0
+
+a = Extended_Example_State()
 
 
-s = Fxn()
+#class Fxn(object):
+#    _init_a = container(b=1)
+#    _init_b = container(c=20.0)
+#    def __init__(self):
+#        self.a = self._init_a()
+#        self.b = self._init_b(c=30.0)
+
+
+#s = Fxn()
 
 b = NewState()
 c = recordclass("Container",())
