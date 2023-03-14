@@ -6,8 +6,8 @@ Created on Sat Feb 25 22:11:26 2023
 """
 from recordclass import dataobject, astuple, asdict, recordclass
 
+
 class State(dataobject, mapping=True):
-    """ """
     def __init__(self,*args,**kwargs):
         super().__init__(*args, **kwargs)
     def reset(self):
@@ -44,6 +44,8 @@ a = Extended_Example_State()
 
 b = NewState()
 c = recordclass("Container",())
+
+a = History(b, "x")
 
 # Flow
 # p : params
